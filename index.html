@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Subhash Public School – Exam Performance Certificate Generator</title>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Great+Vibes&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* --- Hard lock to A4 landscape for printing --- */
+    @page { size: A4 landscape; margin: 0; }
+
+    :root{
+      --primary:#0f4c81;   /* deep blue */
+      --accent:#c7a008;    /* gold */
+      --ink:#1b1b1b;
+      --paper:#fffdfa;
+      --muted:#545454;
+      --shadow: 0 10px 30px rgba(0,0,0,.08);
+      --title-color:#0f4c81;
+      --subtitle-color:#333;
+      --lead-color:#555;
+      --reason-color:#444;
+      --quote-color:#555;
+      --sign-role-color:#333;
+      --school-info-color:#666;
+      --achievement-highlight:#d4af37;
+      --school-name-color:#c00;
+      --student-name-color:#0f4c81;
+      --border-color:#c7a008;
+      --decor-color:#c7a008;
+      --rank-color:#2e8b57;
+    }
+
+    *{ box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{ margin:0; background:#f3f4f7; color:var(--ink); font-family:'Crimson Text', serif; }
+
+    /* ---------- Control Panel ---------- */
+    .controls{
+      position:sticky; top:0; z-index:999;
+      background:#ffffff; border-bottom:1px solid #e7e7e7;
+      padding:16px; box-shadow:0 2px 12px rgba(0,0,0,.04);
+      display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      align-items:end;
+      font-size:15px;
+    }
+    .controls h2{ grid-column:1/-1; margin:0 0 4px 0; font-family:'Playfair Display', serif; letter-spacing:.4px; color:#0f4c81; }
+    .controls h2 span{ color:#c7a008; }
+    .field{ display:flex; flex-direction:column; gap:6px; }
+    .field label{ font-size:.9rem; color:#444; font-weight:500; }
+    .field input[type="text"], .field input[type="date"], .field select, .field textarea{
+      padding:10px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; font-size:14px; font-family:inherit; outline:none;
+      transition: border .3s;
+    }
+    .field input[type="text"]:focus, .field input[type="date"]:focus, .field select:focus, .field textarea:focus{
+      border-color:#0f4c81;
+    }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .btn{ cursor:pointer; border:none; border-radius:999px; padding:12px 18px; font-weight:700; box-shadow:var(--shadow); font-family:'Playfair Display', serif; transition: all .3s; }
+    .btn:hover{ transform:translateY(-2px); box-shadow:0 15px 35px rgba(0,0,0,.1); }
+    .btn.primary{ background:var(--primary); color:white; }
+    .btn.primary:hover{ background:#0d3f6c; }
+    .btn.ghost{ background:white; color:var(--primary); border:1px solid var(--primary); }
+    .btn.ghost:hover{ background:#f0f7ff; }
+    .btn.warn{ background:var(--accent); color:black; }
+    .btn.warn:hover{ background:#b89407; }
+    .btn.success{ background:#2e8b57; color:white; }
+    .btn.success:hover{ background:#267349; }
+    .swatch{ width:34px; height:34px; border-radius:50%; border:2px solid #ddd; cursor:pointer; }
+    .serial-controls { display: flex; gap: 8px; align-items: center; }
+    .serial-controls input { flex: 1; }
+    .color-picker { width: 34px; height: 34px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; padding: 0; }
+    .upload-status{ font-size:12px; color:#666; margin-top:4px; }
+    .upload-status.success{ color:#2e8b57; }
+    .upload-status.error{ color:#c00; }
+
+    /* Color Presets */
+    .color-presets{ display:flex; gap:8px; margin-top:4px; }
+    .color-preset{ width:24px; height:24px; border-radius:4px; border:2px solid #ddd; cursor:pointer; }
+    .color-preset.active{ border-color:#0f4c81; box-shadow:0 0 0 2px rgba(15,76,129,.3); }
+
+    /* ---------- Canvas Area (A4 landscape) ---------- */
+    .workspace{ padding:24px; display:flex; justify-content:center; align-items:center; }
+    .frame{
+      width:297mm;  /* EXACT A4 landscape */
+      height:210mm; /* EXACT A4 landscape */
+      background:var(--paper);
+      position:relative; overflow:hidden; border-radius:18px; box-shadow:var(--shadow);
+    }
+    /* Ornamental border */
+    .frame:before{
+      content:""; position:absolute; inset:16px; border-radius:14px; border:4px solid var(--border-color);
+    }
+
+    .inner{ position:absolute; inset:48px; border-radius:10px; padding:32px 48px; background:
+        radial-gradient(1200px 600px at 50% 0%, rgba(207,172,55,.08), transparent 60%),
+        linear-gradient(180deg, rgba(15,76,129,.04), transparent 30%);
+    }
+
+    /* Header */
+    .brand{ display:flex; gap:18px; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .brand-center{ flex:1; text-align:center; }
+    .logo, .student-photo{ width:120px; height:130px; border-radius:12px; border:2px solid var(--border-color); overflow:hidden; background:white; display:grid; place-items:center; }
+    .logo img, .student-photo img{ width:100%; height:100%; object-fit:contain; }
+    .student-photo.placeholder::after{ content:"Student\A Photo"; white-space:pre; text-align:center; color:#666; font-size:12px; }
+    .school { position: relative; }
+    .school .name{ font-family:'Cinzel', serif; font-weight:700; font-size:50px; color:var(--school-name-color); letter-spacing:.6px; margin-top: 9px; }
+    .school .addr{ font-size:15px; color:var(--muted); margin-top:4px; }
+    .school .founder{ font-size:14px; font-style:italic; color:var(--muted); margin-top:2px; }
+    .school .numbers { 
+      font-size: 12px; 
+      color: var(--muted);
+      margin-top: 4px;
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+    }
+    .divider{ width:100%; height:1px; background:linear-gradient(90deg, transparent, var(--border-color), transparent); margin:10px 0 6px; }
+    
+    /* Founder Image */
+    .founder-image {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 3px solid var(--border-color);
+      position: absolute;
+      top: -85px;
+      left: 50%;
+      transform: translateX(-50%);
+      object-fit: cover;
+      background: white;
+    }
+
+    .founder-title {
+      position: absolute;
+      top: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* Title */
+    .title{ text-align:center; margin:12px 0 10px; }
+    .title .decor{ font-family:'Great Vibes', cursive; font-size:30px; color:var(--decor-color); }
+    .title h1{ margin:0; font-family:'Cinzel', serif; font-weight:700; font-size:35px; letter-spacing:.5px; color:var(--title-color); }
+    .subtitle{ text-align:center; font-size:18px; color:var(--subtitle-color); margin-top:5px; }
+
+    /* Event section */
+    .event-section{ text-align:center; margin:7px 0; font-size:16px; color:var(--lead-color); font-style:italic; }
+
+    /* Rank Badge */
+    .rank-badge{
+      display:inline-block; padding:8px 20px; background:var(--rank-color); 
+      color:white; border-radius:999px; font-weight:700; font-size:14px; 
+      margin:8px auto; letter-spacing:.5px;
+    }
+
+    /* Recipient */
+    .recipient{ margin:15px auto 10px; width:84%; text-align:center; }
+    .recipient .lead{ color:var(--lead-color); font-size:18px; }
+    .recipient .student{ margin-top:10px; font-size:40px; font-weight:700; letter-spacing:.6px; color:var(--student-name-color); }
+    .recipient .student.script{ font-family:'Great Vibes', cursive; font-size:54px; font-weight:400; }
+
+    /* Achievement Reason */
+    .reason{ 
+      margin:14px auto 0; 
+      width:86%; 
+      text-align:center; 
+      color:var(--reason-color); 
+      font-size:18px; 
+      line-height:1.5;
+      position: relative;
+    }
+    .achievement-highlight {
+      font-weight: 700;
+      color: var(--achievement-highlight);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      position: relative;
+      display: inline-block;
+    }
+    .rank-highlight {
+      font-weight: 700;
+      color: var(--rank-color);
+      position: relative;
+      display: inline-block;
+    }
+    .achievement-highlight::after {
+      content: "";
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+    }
+
+    /* Rank Summary */
+    .rank-summary {
+      margin: 20px auto;
+      width: 80%;
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      text-align: center;
+    }
+    .rank-card {
+      background: #f9f9f9;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 12px 20px;
+      min-width: 150px;
+    }
+    .rank-card .rank-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--rank-color);
+    }
+    .rank-card .rank-label {
+      font-size: 14px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    /* Quote section */
+    .quote-section{ 
+      margin:10px auto; 
+      width:70%; 
+      text-align:center; 
+      font-style:italic; 
+      color:var(--quote-color); 
+      font-size:14px; 
+      line-height:1.6; 
+      border-left:3px solid var(--border-color); 
+      padding-left:15px; 
+    }
+
+    /* Meta row */
+    .meta{ display:flex; justify-content:space-between; gap:18px; align-items:flex-end; width:86%; margin:26px auto 0; }
+    .meta .col{ flex:1; }
+    .meta .badge{ display:inline-block; padding:8px 12px; border:1px dashed var(--primary); border-radius:999px; font-size:12px; color:var(--primary); background:#f8fafc; }
+
+    /* Footer signatures */
+    .footer{ position:absolute; left:48px; right:48px; bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; gap:28px; }
+    .signbox{ flex:1; text-align:center; }
+    .sign-line{ border-top:1.5px solid #111; margin:5px 0 4px; }
+    .sign-role{ font-size:13px; color:var(--sign-role-color); }
+    .sign-img{ height:64px; object-fit:contain; display:block; margin:0 auto 6px; }
+    .seal{ width:110px; height:110px; border-radius:50%; border:3px solid var(--border-color); display:grid; place-items:center; font-weight:700; color:var(--border-color); position:absolute; right:25px; bottom:106px; background:radial-gradient(circle at 30% 30%, rgba(199,160,8,.18), transparent 40%); }
+
+    /* School info footer */
+    .school-info{ position:absolute; bottom:0px; left:0; right:0; text-align:center; font-size:10px; color:var(--school-info-color); padding:5px; }
+    .school-info a{ color:var(--primary); text-decoration:none; }
+    .school-info a:hover{ text-decoration:underline; }
+
+    /* Theme helpers */
+    .theme-minimal .frame:before{ border-color:#222; }
+    .theme-minimal .title .decor{ color:#222; }
+
+    /* --- PRINT FIX: ensure single-page exact fit --- */
+    @media print{
+      html, body { width:297mm; height:210mm; margin:0 !important; }
+      .controls{ display:none !important; }
+      .workspace{ padding:0 !important; }
+      .frame{ width:297mm !important; height:210mm !important; box-shadow:none !important; page-break-inside:avoid; break-inside:avoid; }
+      .sign-img[src=""] { display: none !important; }
+      .sign-img[src=""] + .sign-line + .sign-role { display: none !important; }
+      .student-photo.placeholder::after { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ======= CONTROL PANEL ======= -->
+  <section class="controls">
+    <h2>🎓 Subhash Public School - <span>Exam Performance</span> Certificate Generator</h2>
+
+    <div class="field">
+      <label>Certificate Title</label>
+      <input id="titleInput" type="text" value="Certificate of Academic Excellence" />
+    </div>
+    <div class="field">
+      <label>Academic Year / Exam Period</label>
+      <input id="occasionInput" type="text" value="Annual Examination 2025-2026" />
+    </div>
+    <div class="field">
+      <label>Student Name</label>
+      <input id="studentInput" type="text" value="Aditya Prakash" />
+    </div>
+    <div class="field">
+      <label>Use Script Style Name</label>
+      <select id="scriptToggle">
+        <option value="yes">Yes – cursive</option>
+        <option value="no" selected>No – classic</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Class & Section</label>
+      <input id="classInput" type="text" placeholder="e.g., Class 8A" value="Class 8A" />
+    </div>
+    <div class="field">
+      <label>Roll Number</label>
+      <input id="rollInput" type="text" placeholder="e.g., 17" value="17" />
+    </div>
+    <div class="field">
+      <label>Class Rank</label>
+      <select id="classRankSelect">
+        <option value="1">1st Position (Topper)</option>
+        <option value="2">2nd Position</option>
+        <option value="3">3rd Position</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Overall School Rank</label>
+      <select id="overallRankSelect">
+        <option value="1">1st Position (School Topper)</option>
+        <option value="2">2nd Position</option>
+        <option value="3">3rd Position</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Rank Highlight Color</label>
+      <input type="color" id="rankColor" value="#2e8b57" class="color-picker">
+      <div class="color-presets">
+        <div class="color-preset active" style="background:#2e8b57;" data-color="#2e8b57"></div>
+        <div class="color-preset" style="background:#0f4c81;" data-color="#0f4c81"></div>
+        <div class="color-preset" style="background:#c7a008;" data-color="#c7a008"></div>
+        <div class="color-preset" style="background:#c00;" data-color="#c00"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Custom Achievement Description</label>
+      <textarea id="reasonInput" rows="3">is hereby recognized for outstanding academic performance, having secured the <span class="rank-highlight">1st position</span> in class during the examination period. This exceptional achievement reflects dedication, hard work, and intellectual brilliance.</textarea>
+    </div>
+    <div class="field" style="grid-column: span 2;">
+      <label>Inspirational Quote</label>
+      <textarea id="quoteInput" rows="2">"Excellence is not a skill, it's an attitude. Keep aiming for the stars."</textarea>
+    </div>
+    <div class="field">
+      <label>Award Date</label>
+      <input id="dateInput" type="date" />
+    </div>
+    <div class="field">
+      <label>Serial Number</label>
+      <div class="serial-controls">
+        <input id="serialInput" type="text" placeholder="e.g., SPS-EXAM-2025-001" />
+        <button class="btn ghost" id="generateSerial" style="padding: 10px 12px;">Generate</button>
+      </div>
+    </div>
+    
+    <!-- Color Customization Section -->
+    <div class="field">
+      <label>School Name Color</label>
+      <input type="color" id="schoolNameColor" value="#c00" class="color-picker">
+    </div>
+    <div class="field">
+      <label>Student Name Color</label>
+      <input type="color" id="studentNameColor" value="#0f4c81" class="color-picker">
+    </div>
+    <div class="field">
+      <label>Title Color</label>
+      <input type="color" id="titleColor" value="#0f4c81" class="color-picker">
+    </div>
+    <div class="field">
+      <label>Border & Decor Color</label>
+      <input type="color" id="borderColor" value="#c7a008" class="color-picker">
+    </div>
+    <div class="field">
+      <label>Theme Preset</label>
+      <select id="themePreset">
+        <option value="default">Default (Gold & Blue)</option>
+        <option value="green">Green & Gold</option>
+        <option value="blue">Blue Theme</option>
+        <option value="red">Red & Gold</option>
+        <option value="minimal">Minimal Black</option>
+      </select>
+    </div>
+    
+    <!-- Image Uploads -->
+    <div class="field">
+      <label>School Logo</label>
+      <input id="logoUpload" type="file" accept="image/*" />
+      <div class="upload-status" id="logoStatus">✓ Auto-loaded from <images>
+      <logo class="jpg"></logo></div>
+    </div>
+    <div class="field">
+      <label>Student Photo</label>
+      <input id="photoUpload" type="file" accept="image/*" />
+      <div class="upload-status" id="photoStatus">Upload student photo (optional)</div>
+    </div>
+    <div class="field">
+      <label>Founder Image</label>
+      <input id="founderUpload" type="file" accept="image/*" />
+      <div class="upload-status" id="founderStatus">✓ Auto-loaded from images/babajee.jpg</div>
+    </div>
+
+    <div class="row" style="grid-column:1/-1; gap:14px; margin-top:6px;">
+      <button class="btn success" id="downloadPNG">Download PNG</button>
+      <button class="btn primary" id="downloadPDF">Download PDF (A4)</button>
+      <button class="btn warn" id="toggleControls">Hide Controls</button>
+      <button class="btn ghost" onclick="window.print()">Print via Browser</button>
+      <button class="btn ghost" id="resetBtn">Reset to Default</button>
+    </div>
+  </section>
+
+  <!-- ======= CERTIFICATE CANVAS ======= -->
+  <main class="workspace" id="workspace">
+    <div class="frame" id="certificate">
+      <div class="inner">
+        <div class="brand">
+          <div class="logo"><img id="logoPreview" src="images/logo.jpg" alt="SPS Logo"/></div>
+          <div class="brand-center school">
+            <img id="founderImage" class="founder-image" src="images/babajee.jpeg" alt="Late Shree Subhash Pandey">
+            <div class="founder-title">Late Shree Subhash Pandey, Founder</div>
+            <div class="name">Subhash Public School</div>
+            <div class="addr">North Noneya Pandey Tola, Paharpur – 845422 · East Champaran, Bihar, India</div>
+            <div class="numbers">
+              <span>UDISE Number: 10021700118</span>
+              <span>Registration Number: 20410442021912162343</span>
+            </div>
+            <div class="founder">"Honoring the legacy of Late Shree Subhash Pandey, whose contributions remain timeless."</div>
+          </div>
+          <div class="student-photo placeholder" id="studentPhotoBox">
+            <img id="studentPhoto" alt="Student Photo"/>
+          </div>
+        </div>
+        <div class="divider"></div>
+
+        <div class="title">
+          <h1 id="titleText">Certificate of Academic Excellence</h1>
+          <div class="subtitle" id="occasionText">Annual Examination 2025-2026</div>
+        </div>
+
+        <section class="recipient">
+          <div class="lead">This certificate is proudly presented to</div>
+          <div class="student" id="studentText">Aditya Prakash</div>
+          <div style="margin-top:8px; font-size:16px; color:var(--lead-color);">
+            of <span id="classRollText">Class 8A, Roll No. 17</span>
+          </div>
+        </section>
+
+        <div class="reason" id="reasonText">
+          is hereby recognized for outstanding academic performance, having secured the <span class="rank-highlight">1st position</span> in class during the examination period. This exceptional achievement reflects dedication, hard work, and intellectual brilliance.
+        </div>
+
+        <!-- Rank Summary Cards -->
+        <div class="rank-summary" id="rankSummary">
+          <div class="rank-card">
+            <div class="rank-value" id="classRankValue">🥇 1st</div>
+            <!-- <div class="rank-label">Class Rank</div> -->
+          </div>
+          <!-- <div class="rank-card">
+            <div class="rank-value" id="overallRankValue">🥇 1st</div>
+            <div class="rank-label">Overall School Rank</div>
+          </div> -->
+        </div>
+
+        <div class="quote-section" id="quoteText">
+          "Excellence is not a skill, it's an attitude. Keep aiming for the stars."
+        </div>
+            
+        <section class="meta">
+          <div class="col" style="text-align:center"><span class="badge" id="dateBadge">Date</span></div>
+        </section>
+
+        <div class="footer">
+          <div class="signbox">
+            <div class="sign-line"></div>
+            <div class="sign-role">Mr. Rajeev Kumar Pandey - Director</div>
+          </div>
+          <div class="signbox">
+            <div class="sign-line"></div>
+            <div class="sign-role">Mr. Hiralal Prasad - Principal</div>
+          </div>
+        </div>
+
+        <div class="school-info">
+          Website: <a href="https://spsn.netlify.app" target="_blank">spsn.netlify.app</a> • 
+          Contact: <a href="https://linktr.ee/spsnoneya" target="_blank">linktr.ee/spsnoneya</a> • 
+          Email: spsnoneya@gmail.com • Phone: +91 7561949442
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- html2canvas + jsPDF -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script>
+    const $ = (id)=> document.getElementById(id);
+    const setVar = (n,v)=> document.documentElement.style.setProperty(n,v);
+    let schoolLogoLoaded = false;
+    let founderImageLoaded = false;
+
+    // Helper to convert rank value to text
+    function getRankText(rankVal, type) {
+      if (rankVal === "1") return type === 'class' ? "1st Position (Class Topper)" : "1st Position (School Topper)";
+      if (rankVal === "2") return "2nd Position";
+      if (rankVal === "3") return "3rd Position";
+      return "Top Rank";
+    }
+
+    function getRankEmoji(rankVal) {
+      if (rankVal === "1") return "🥇";
+      if (rankVal === "2") return "🥈";
+      if (rankVal === "3") return "🥉";
+      return "🏅";
+    }
+
+    function updateRankDisplay() {
+      const classRank = $('classRankSelect').value;
+      const overallRank = $('overallRankSelect').value;
+      $('classRankValue').innerHTML = `${getRankEmoji(classRank)} ${classRank === "1" ? "1st" : classRank === "2" ? "2nd" : "3rd"}`;
+      $('overallRankValue').innerHTML = `${getRankEmoji(overallRank)} ${overallRank === "1" ? "1st" : overallRank === "2" ? "2nd" : "3rd"}`;
+    }
+
+    // Build dynamic reason with rank placeholders
+    function buildReasonFromInput() {
+      let rawReason = $('reasonInput').value;
+      const classRank = $('classRankSelect').value;
+      const overallRank = $('overallRankSelect').value;
+      const classRankText = getRankText(classRank, 'class');
+      const overallRankText = getRankText(overallRank, 'overall');
+      rawReason = rawReason.replace(/class rank placeholder/gi, classRankText);
+      rawReason = rawReason.replace(/overall rank placeholder/gi, overallRankText);
+      // Also replace any generic rank-highlight spans with actual text
+      const rankSpanRegex = /<span class="rank-highlight">(.*?)<\/span>/g;
+      rawReason = rawReason.replace(rankSpanRegex, (match, content) => {
+        if (content.includes('1st') || content.includes('2nd') || content.includes('3rd')) return match;
+        if (content.toLowerCase().includes('class')) return `<span class="rank-highlight">${classRankText}</span>`;
+        if (content.toLowerCase().includes('overall')) return `<span class="rank-highlight">${overallRankText}</span>`;
+        return match;
+      });
+      // Direct replacement for exact placeholders
+      rawReason = rawReason.replace(/class rank/g, classRankText);
+      rawReason = rawReason.replace(/overall rank/g, overallRankText);
+      // Ensure rank highlights are properly formatted
+      if (!rawReason.includes('rank-highlight')) {
+        rawReason = rawReason.replace(/1st position/gi, `<span class="rank-highlight">1st position</span>`);
+        rawReason = rawReason.replace(/2nd position/gi, `<span class="rank-highlight">2nd position</span>`);
+        rawReason = rawReason.replace(/3rd position/gi, `<span class="rank-highlight">3rd position</span>`);
+      }
+      return rawReason;
+    }
+
+    function updateReason() {
+      $('reasonText').innerHTML = buildReasonFromInput();
+    }
+
+    // Image loading with fallback
+    function loadImageWithFallback(elementId, imagePath, fallbackText = '') {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = function() {
+          $(elementId).src = imagePath;
+          resolve(true);
+        };
+        img.onerror = function() {
+          console.warn(`Could not load image: ${imagePath}`);
+          if (fallbackText && $(elementId).parentElement.classList.contains('placeholder')) {
+            $(elementId).parentElement.innerHTML = `<div style="padding:20px; text-align:center; color:#666;">${fallbackText}</div>`;
+          }
+          resolve(false);
+        };
+        img.src = imagePath;
+      });
+    }
+
+    async function initializeImages() {
+      schoolLogoLoaded = await loadImageWithFallback('logoPreview', 'images/logo.jpg', 'School Logo');
+      if (schoolLogoLoaded) {
+        $('logoStatus').textContent = '✓ Auto-loaded school logo';
+        $('logoStatus').classList.add('success');
+      } else {
+        $('logoStatus').textContent = '⚠ Could not load logo from images/logo.jpg';
+        $('logoStatus').classList.add('error');
+      }
+
+      founderImageLoaded = await loadImageWithFallback('founderImage', 'images/babajee.jpg', 'Founder Image');
+      if (founderImageLoaded) {
+        $('founderStatus').textContent = '✓ Auto-loaded founder image';
+        $('founderStatus').classList.add('success');
+      } else {
+        $('founderStatus').textContent = '⚠ Could not load founder image from images/babajee.jpg';
+        $('founderStatus').classList.add('error');
+      }
+
+      $('studentPhoto').src = 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
+    }
+
+    // Serial number generation
+    let lastSerialNumber = 1;
+    function generateExamSerial() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const serial = String(lastSerialNumber).padStart(3, '0');
+      lastSerialNumber++;
+      return `SPS-EXAM-${year}-${serial}`;
+    }
+
+    $('serialInput').value = generateExamSerial();
+
+    $('generateSerial').addEventListener('click', () => {
+      $('serialInput').value = generateExamSerial();
+    });
+
+    // Bind inputs
+    $('titleInput').addEventListener('input', e=> $('titleText').textContent = e.target.value || '');
+    $('occasionInput').addEventListener('input', e=> $('occasionText').textContent = e.target.value || '');
+    $('studentInput').addEventListener('input', e=> $('studentText').textContent = e.target.value || '');
+    $('classInput').addEventListener('input', updateClassRoll);
+    $('rollInput').addEventListener('input', updateClassRoll);
+    function updateClassRoll() {
+      const className = $('classInput').value || '';
+      const rollNo = $('rollInput').value || '';
+      let displayText = '';
+      if (className && rollNo) displayText = `${className}, Roll No. ${rollNo}`;
+      else if (className) displayText = className;
+      else if (rollNo) displayText = `Roll No. ${rollNo}`;
+      else displayText = 'Class / Roll';
+      $('classRollText').textContent = displayText;
+    }
+    $('classRankSelect').addEventListener('change', () => { updateRankDisplay(); updateReason(); });
+    $('overallRankSelect').addEventListener('change', () => { updateRankDisplay(); updateReason(); });
+    $('reasonInput').addEventListener('input', updateReason);
+    $('quoteInput').addEventListener('input', e=> $('quoteText').textContent = e.target.value || '');
+    $('dateInput').addEventListener('input', e=> {
+      const v = e.target.value;
+      if(!v){ $('dateBadge').textContent = 'Date'; return; }
+      const parts = v.split('-');
+      const d = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00`);
+      const fmt = d.toLocaleDateString(undefined, { day:'2-digit', month:'long', year:'numeric' });
+      $('dateBadge').textContent = fmt;
+    });
+    $('scriptToggle').addEventListener('change', e=> {
+      const el = $('studentText');
+      if(e.target.value === 'yes') el.classList.add('script');
+      else el.classList.remove('script');
+    });
+
+    // Color pickers
+    function setupColorPicker(id, cssVar) {
+      const picker = $(id);
+      picker.addEventListener('input', (e) => setVar(cssVar, e.target.value));
+    }
+    setupColorPicker('schoolNameColor', '--school-name-color');
+    setupColorPicker('studentNameColor', '--student-name-color');
+    setupColorPicker('titleColor', '--title-color');
+    setupColorPicker('borderColor', '--border-color');
+    setupColorPicker('rankColor', '--rank-color');
+
+    // Color presets
+    document.querySelectorAll('.color-preset').forEach(preset => {
+      preset.addEventListener('click', function() {
+        document.querySelectorAll('.color-preset').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        const color = this.getAttribute('data-color');
+        $('rankColor').value = color;
+        setVar('--rank-color', color);
+      });
+    });
+
+    // Theme presets
+    $('themePreset').addEventListener('change', function(e) {
+      const theme = e.target.value;
+      const workspace = $('workspace');
+      workspace.classList.remove('theme-minimal');
+      switch(theme) {
+        case 'green':
+          setVar('--primary', '#2e8b57');
+          setVar('--accent', '#c7a008');
+          setVar('--title-color', '#2e8b57');
+          setVar('--school-name-color', '#2e8b57');
+          setVar('--student-name-color', '#2e8b57');
+          setVar('--rank-color', '#2e8b57');
+          break;
+        case 'blue':
+          setVar('--primary', '#0f4c81');
+          setVar('--accent', '#0f4c81');
+          setVar('--title-color', '#0f4c81');
+          setVar('--school-name-color', '#0f4c81');
+          setVar('--student-name-color', '#0f4c81');
+          setVar('--rank-color', '#0f4c81');
+          break;
+        case 'red':
+          setVar('--primary', '#c00');
+          setVar('--accent', '#c7a008');
+          setVar('--title-color', '#c00');
+          setVar('--school-name-color', '#c00');
+          setVar('--student-name-color', '#c00');
+          setVar('--rank-color', '#c00');
+          break;
+        case 'minimal':
+          workspace.classList.add('theme-minimal');
+          setVar('--primary', '#222');
+          setVar('--accent', '#222');
+          setVar('--title-color', '#222');
+          setVar('--school-name-color', '#222');
+          setVar('--student-name-color', '#222');
+          setVar('--rank-color', '#222');
+          break;
+        default:
+          setVar('--primary', '#0f4c81');
+          setVar('--accent', '#c7a008');
+          setVar('--title-color', '#0f4c81');
+          setVar('--school-name-color', '#c00');
+          setVar('--student-name-color', '#0f4c81');
+          setVar('--rank-color', '#2e8b57');
+      }
+    });
+
+    // Image uploads
+    function bindImage(input, img, statusElement, onLoad){
+      if (input && statusElement) {
+        input.addEventListener('change', ()=>{
+          const f = input.files && input.files[0];
+          if(!f) return;
+          const r = new FileReader();
+          r.onload = ev=>{
+            img.src = ev.target.result;
+            statusElement.textContent = '✓ Image uploaded successfully';
+            statusElement.classList.add('success');
+            statusElement.classList.remove('error');
+            onLoad && onLoad();
+          };
+          r.readAsDataURL(f);
+        });
+      }
+    }
+    bindImage($('logoUpload'), $('logoPreview'), $('logoStatus'), () => { schoolLogoLoaded = true; });
+    bindImage($('photoUpload'), $('studentPhoto'), $('photoStatus'), () => { $('studentPhotoBox').classList.remove('placeholder'); });
+    bindImage($('founderUpload'), $('founderImage'), $('founderStatus'), () => { founderImageLoaded = true; });
+
+    // Export functions
+    async function preloadAllImages() {
+      const promises = [];
+      if (!$('logoPreview').src.includes('data:')) {
+        promises.push(new Promise(resolve => {
+          const img = new Image();
+          img.crossOrigin = "Anonymous";
+          img.onload = resolve;
+          img.onerror = resolve;
+          img.src = $('logoPreview').src;
+        }));
+      }
+      if (!$('founderImage').src.includes('data:')) {
+        promises.push(new Promise(resolve => {
+          const img = new Image();
+          img.crossOrigin = "Anonymous";
+          img.onload = resolve;
+          img.onerror = resolve;
+          img.src = $('founderImage').src;
+        }));
+      }
+      if ($('studentPhoto').src && !$('studentPhoto').src.includes('data:')) {
+        promises.push(new Promise(resolve => {
+          const img = new Image();
+          img.crossOrigin = "Anonymous";
+          img.onload = resolve;
+          img.onerror = resolve;
+          img.src = $('studentPhoto').src;
+        }));
+      }
+      return Promise.all(promises);
+    }
+
+    $('downloadPNG').addEventListener('click', async ()=>{
+      try {
+        $('downloadPNG').textContent = 'Processing...';
+        $('downloadPNG').disabled = true;
+        await preloadAllImages();
+        const node = $('certificate');
+        const canvas = await html2canvas(node, { scale: 3, useCORS: true, backgroundColor: null, logging: false, allowTaint: true });
+        canvas.toBlob(function(blob){
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          const serialNumber = $('serialInput').value || 'SPS-EXAM-2025-001';
+          a.download = `SPS-Exam-Certificate-${serialNumber}.png`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+          $('downloadPNG').textContent = 'Download PNG';
+          $('downloadPNG').disabled = false;
+        });
+      } catch (error) {
+        console.error(error);
+        alert('Error generating PNG');
+        $('downloadPNG').textContent = 'Download PNG';
+        $('downloadPNG').disabled = false;
+      }
+    });
+
+    $('downloadPDF').addEventListener('click', async ()=>{
+      try {
+        $('downloadPDF').textContent = 'Processing...';
+        $('downloadPDF').disabled = true;
+        await preloadAllImages();
+        const node = $('certificate');
+        const canvas = await html2canvas(node, { scale: 2, useCORS: true, backgroundColor: '#ffffff', allowTaint: true, logging: false });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH);
+        const serialNumber = $('serialInput').value || 'SPS-EXAM-2025-001';
+        pdf.save(`SPS-Exam-Certificate-${serialNumber}.pdf`);
+        $('downloadPDF').textContent = 'Download PDF';
+        $('downloadPDF').disabled = false;
+      } catch (error) {
+        console.error(error);
+        alert('Error generating PDF');
+        $('downloadPDF').textContent = 'Download PDF';
+        $('downloadPDF').disabled = false;
+      }
+    });
+
+    // Hide/show controls
+    const toggleBtn = $('toggleControls');
+    let hidden = false;
+    toggleBtn.addEventListener('click', ()=>{
+      const panel = document.querySelector('.controls');
+      if(hidden){
+        panel.style.display='grid';
+        toggleBtn.textContent='Hide Controls';
+        hidden=false;
+      } else {
+        panel.style.display='none';
+        toggleBtn.textContent='Show Controls';
+        hidden=true;
+      }
+    });
+
+    // Reset to default
+    $('resetBtn').addEventListener('click', () => {
+      if (confirm('Reset all settings to default?')) {
+        $('titleInput').value = 'Certificate of Academic Excellence';
+        $('occasionInput').value = 'Annual Examination 2025-2026';
+        $('studentInput').value = 'Aditya Prakash';
+        $('classInput').value = 'Class 8A';
+        $('rollInput').value = '17';
+        $('classRankSelect').value = '1';
+        $('overallRankSelect').value = '1';
+        $('reasonInput').value = 'is hereby recognized for outstanding academic performance, having secured the <span class="rank-highlight">1st position</span> in class during the examination period. This exceptional achievement reflects dedication, hard work, and intellectual brilliance.';
+        //$('reasonInput').value = 'is hereby recognized for outstanding academic performance, having secured the <span class="rank-highlight">1st position</span> in class and <span class="rank-highlight">1st position</span> overall in the school during the examination period. This exceptional achievement reflects dedication, hard work, and intellectual brilliance.';
+        $('quoteInput').value = '"Excellence is not a skill, it\'s an attitude. Keep aiming for the stars."';
+        $('scriptToggle').value = 'no';
+        $('themePreset').value = 'default';
+        $('schoolNameColor').value = '#c00';
+        $('studentNameColor').value = '#0f4c81';
+        $('titleColor').value = '#0f4c81';
+        $('borderColor').value = '#c7a008';
+        $('rankColor').value = '#2e8b57';
+        document.querySelectorAll('.color-preset').forEach(p => p.classList.remove('active'));
+        document.querySelector('.color-preset[data-color="#2e8b57"]').classList.add('active');
+        $('titleInput').dispatchEvent(new Event('input'));
+        $('occasionInput').dispatchEvent(new Event('input'));
+        $('studentInput').dispatchEvent(new Event('input'));
+        $('classInput').dispatchEvent(new Event('input'));
+        $('rollInput').dispatchEvent(new Event('input'));
+        $('classRankSelect').dispatchEvent(new Event('change'));
+        $('overallRankSelect').dispatchEvent(new Event('change'));
+        $('reasonInput').dispatchEvent(new Event('input'));
+        $('quoteInput').dispatchEvent(new Event('input'));
+        $('themePreset').dispatchEvent(new Event('change'));
+        initializeImages();
+        $('serialInput').value = generateExamSerial();
+        alert('All settings reset to default.');
+      }
+    });
+
+    // Initialize
+    (function setToday(){
+      const d=new Date();
+      const yyyy=d.getFullYear();
+      const mm=String(d.getMonth()+1).padStart(2,'0');
+      const dd=String(d.getDate()).padStart(2,'0');
+      $('dateInput').value=`${yyyy}-${mm}-${dd}`;
+      $('dateInput').dispatchEvent(new Event('input'));
+    })();
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeImages();
+      updateClassRoll();
+      updateRankDisplay();
+      updateReason();
+      $('studentInput').focus();
+    });
+  </script>
+</body>
+</html>
